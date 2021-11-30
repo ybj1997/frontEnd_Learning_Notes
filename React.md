@@ -111,6 +111,12 @@ class Welcome extends React.component{
 
 ​	**原理**：状态提升后父组件的state通过props传递给两个子组件进行共享，但是props不能直接修改，那么就需要依赖另一个知识点：<font color="pink">受控组件</font>，父组件通过props不仅要传递state给子组件，还应该传递修改父组件state的方法给子组件，子组件通过调用该方法就可以修改父组件的state，从而全局的state发生变化。
 
+## 受控组件
+
+​	**背景**：传统HTML表单元素的数据由自己维护，并根据用户输入更新。在React的JSX语法中的组件，数据通常都保存state中，通过setState来更新
+
+​	受控组件就是将两者结合起来，使state成为<font color="pink">唯一数据源</font>，通过控制state来控制表单输入元素的取值。因此可以将该value可以与更多的组件联系起来。
+
 # 五、Refs与事件处理
 
 ## Refs
@@ -225,6 +231,38 @@ const ref = React.createRef();//1.创建一个ref
 
 ​		销毁之前调用，当React更新DOM的时候，如果一个DOM节点被删除时，也会触发该生命周期函数
 
+# 路由组件
+
+SPA（单页面应用）：整个应用只有一个页面，不同内容展示通过路由局部更新，且页面的数据通过AJAX请求，异步展示在页面上。
+
+路由分为<font color="pink">前端路由和后端路由</font>两种，都是通过path和value的映射关系来实现工作的。
+
+- ​	前端路由的value为组件
+- ​    后端路由的value为函数
+
+#### 核心原理：操作BOM的history属性
+
+#### 基础使用
+
+使用路由组件，必须将所有路由API放在顶级路由API：`<BrowserRouter>`中
+
+```jsx
+import React,{Component} from 'react'
+import {Link,Route} from 'react-router-dom'
+
+<Link to='path'></Link>//路由链接
+<Route path='path' component={}></Route> 
+
+```
+
+#### 组件分类
+
+|                      路由组件                       |           一般组件           |
+| :-------------------------------------------------: | :--------------------------: |
+|               开发中放在pages文件夹下               | 开发中放在components文件夹下 |
+|                  由路由API展示组件                  |         自主展示组件         |
+| 组件中props固定传入history、location、match三个属性 |     组件中默认props为空      |
+
 
 
 # Redux（集中状态管理）（任意组件间通信）
@@ -253,7 +291,7 @@ export default createStore(keyReduce)
 
 ### 2.创建一个为key组件服务的Reducer
 
-key_Reducer.js文件
+key_Reducer.js文件，用于处理action对象，并返回新的state
 
 ```javascript
 /*
@@ -282,6 +320,7 @@ function(preState,actionObj){
 import store from '/path/store.js'
 
 //调用reducer，传入参数actionObj为{type:type1,date:value}
+//我们还可以创建为action封装一个函数
 store.dispatch({type:type1,date:value})
 
 /*
@@ -298,5 +337,110 @@ componentDidMount(){
 
 //获取reducer中的prestate值
 store.getState()
+```
+
+# 组件懒加载
+
+**使用`React.Lazy()`实现组件懒加载**
+
+ 	将静态导入替换为调用，以`React.lazy()`传递一个返回动态导入的函数。现在浏览器不会下载`./StockChart.js`（及其依赖项），直到我们第一次渲染它。 
+
+**当 React 想要渲染 <StockChart/> 而它还没有代码时会发生什么？** 
+
+​	 添加 :exclamation: ` <React.Suspense fallback={组件}/>` 。懒加载还未完成时，它将渲染`fallback`prop 而不是它的`children`，直到它的所有`children`的所有代码都被加载 
+
+```jsx
+import React from "react";
+import StockTable from "./StockTable";
+
+/*懒加载*/
+const StockChart = React.lazy(() =>
+  import("./StockChart")
+);
+
+class App extends React.Component {
+  state = {
+    selectedStock: null
+  };
+  render() {
+    const { stocks } = this.props;
+    const { selectedStock } = this.state;
+    return (
+      <React.Suspense fallback={<div>Loading...</div>}>
+        <StockTable
+          stocks={stocks}
+          onSelect={selectedStock => this.setState({ selectedStock })}
+        />
+        {selectedStock && (
+          <StockChart
+            stock={selectedStock}
+            onClose={() => this.setState({ selectedStock: false })}
+          />
+        )}
+      </React.Suspense>
+    );
+  }
+}
+
+export default App;
+```
+
+## 预加载惰性组件
+
+​	我们第一次渲染时，会看到`Loading...`的`fallback`，因为第一次渲染时，我们需要等待`chartTable`组件加载完才能显示。
+
+​	如果我们不想要这种效果，就需要预加载惰性组件，简单实现方法就是在调用之前启动动态导入：
+
+```jsx
+-|const StockChart = React.lazy(() =>
+-|  import("./StockChart")
+-|);
+                                
++|const preLazyLoad = import ("./StockChart");
++|const StockChart = React.lazy(()=> preLazyLoad);     
+```
+
+## 预加载组件
+
+```jsx
+import React from "react";
+import StockTable from "./StockTable";
+
+/*懒加载*/
+const StockChart = React.lazy(() =>
+  import("./StockChart")
+);
+
+class App extends React.Component {
+  state = {
+    selectedStock: null
+  };
+  render() {
+    const { stocks } = this.props;
+    const { selectedStock } = this.state;
+    return (
+      <React.Suspense fallback={<div>Loading...</div>}>
+        <StockTable
+          stocks={stocks}
+          onSelect={selectedStock => this.setState({ selectedStock })}
+        />
+        {selectedStock && (
+          <StockChart
+            stock={selectedStock}
+            onClose={() => this.setState({ selectedStock: false })}
+          />
+        )}
+          {/* Preload <StockChart/> */}
++|        <React.suspense fallcack={null}>
++|        	<div hidden={true}>
++|          	<StockChart stock={stock[0]}
++|          </div>
++|        </React.suspense>
+    </React.Suspense>
+    );
+  }
+}
+
+export default App;
 ```
 
