@@ -63,7 +63,7 @@
 
 ## props.children
 
-每个组件（函数或者类式）都可以获取到props.children
+组件的标签体内容是一个特殊的标签体属性，每个组件（函数或者类式）都可以获取到props.children
 
 ```jsx
 //1.使用组件
@@ -78,10 +78,27 @@ function Weilcom(props){
 
 //3.类式组件内部的props.childeren
 class Welcome extends React.component{
-    
     render(){
         return (
-        	console.log(this.props.children);//Hello world!
+console.log(this.props.children);//Hello world!
+        )
+    }
+}
+```
+
+**组件封装时的应用：**标签体属性children用于传递标签体内容
+
+```jsx
+<MyNavLink>123</MyNavLink>
+//封装组件:将参数通过props传递到封装组件中，封装组件中返回一个想用的组件，并在该想用的组件中传入props
+import {NavLink} from 'react-router-dom'
+class MyNavLink extends React.component{
+    render(){
+        console.log(this.props.children);//123 =>传递标签体内容
+        return (
+            <NavLink children/>//传递标签体内容
+            //等价于
+            <NavLink>{this.props.children}</NavLink> 
         )
     }
 }
@@ -251,30 +268,156 @@ SPA（单页面应用）：整个应用只有一个页面，不同内容展示�
 - ​	前端路由的value为组件
 - ​    后端路由的value为函数
 
-#### 核心原理：操作BOM的history属性
-
 #### 基础使用
-
-使用路由组件，必须将所有路由API放在顶级路由API：`<BrowserRouter>`中
 
 ```jsx
 import React,{Component} from 'react'
-import {Link,Route} from 'react-router-dom'
-
-<Link to='path'></Link>//路由链接
-<Route path='path' component={}></Route> 
-
+import {BrowserRouter,HashRouter,Link,NavLink,Route,Switch} from 'react-router-dom'
 ```
 
-#### 组件分类
+**`<BrowserRouter>`与`<HashRouter>`**
 
-|                      路由组件                       |           一般组件           |
-| :-------------------------------------------------: | :--------------------------: |
-|               开发中放在pages文件夹下               | 开发中放在components文件夹下 |
-|                  由路由API展示组件                  |         自主展示组件         |
-| 组件中props固定传入history、location、match三个属性 |     组件中默认props为空      |
+使用路由组件，必须将其包裹所有组件，因此将该组件包裹顶级组件`<App/>`即可。`<BrowserRouter>`刷新页面参数不会丢失，`<HashRouter>`刷新页面state参数丢失，但是兼容性更好。
 
+**`<Link>`与`<NavLink>`**
 
+路由链接。NavLInk可以通过activeClassName属性设置选中时的样式
+
+```jsx
+<Link to='path'></Link>
+<NavLink activeClassName="自定义样式" to='path'></NavLink>
+```
+
+`<Route>`
+
+注册路由。通过该标签注册的组件，props中默认携带location、history、match三个路由属性
+
+```jsx
+<Route path='/' component={}></Route>
+```
+
+`<Switch>`
+
+默认路由匹配是将所有匹配上的组件全部展示；用该标签包裹所有路由组件，那么路由匹配上一个后就结束
+
+```jsx
+<Switch>
+	<Route path='/' component={}></Route>
+    <Route path='/' component={}></Route>
+</Switch>
+```
+
+`<Redirect>`
+
+路由重定向。一般放在`<Route>`后，当前面匹配不上时，使用`<Redirect>`指向的组件
+
+```jsx
+<Switch>
+	<Route path='/' component={}></Route>
+    <Route path='/' component={}></Route>
+    <Redirect to='path'/>
+</Switch>
+```
+
+`<WithRouter>`
+
+将一般组件封装为路由组件，使其能够调用路由组件的三大属性。
+
+#### 路由匹配
+
+多级路由匹配时，路由组件进行匹配时，都是从顶级APP开始匹配的，由于模糊匹配，一级路由能够匹配上多级路由的`/一级路径`，就能够展示一级路由；而后匹配二级路由，二级路由能够匹配上多级路由的`/一级路径/二级路径`，所以二级路由展示，直到多级路由全部匹配完成。
+
+精准匹配
+
+在标签属性中加上`exact`
+
+模糊匹配
+
+当`<Route>`路径<font color='red'>∈</font>`<Link>`路径，`<Route>`在进行路由匹配时，从左往右依次匹配`<Link>`中的路径
+
+#### 路由组件三种传参
+
+传递params参数形式
+
+```jsx
+//父组件
+Class A extends Component{
+    render(){
+		return(
+         //params参数传参方式
+         <Link to={`/home/${id}/${name}`}></Link>
+         //params接收参数形式
+         <Route path='/home/:id/:name' component={B}></Route>
+    }
+    )
+}
+//子组件
+Class B extends Component{
+    render(){
+        const {id,name} = this.props.match.params;
+    }
+}
+```
+
+传递search参数
+
+```jsx
+import qs from 'querystring'
+//父组件
+Class A extends Component{
+    render(){
+		return(
+         //search参数传参方式
+         <Link to={`/home/?id=${id}&name=${name}`}></Link>
+         //search参数无需声明接收
+         <Route path='/home' component={B}></Route>
+    }
+    )
+}
+//子组件
+Class B extends Component{
+    render(){
+        console.log(this.props.location.search);//?id=id&name=name
+        //利用React自带的querystring库编码和解码url参数形式
+        const {search} = this.props.location;
+        const {id,name} = qs.parse(search.slice(1));
+    }
+}
+```
+
+传递state参数
+
+传递参数由BOM的history属性维护，当清除浏览器缓存后，刷新浏览器则参数丢失 
+
+```jsx
+//父组件
+Class A extends Component{
+    render(){
+		return(
+         //state参数传参方式
+         <Link to={{pathname:'/home',state:{id:id,name:name}}}></Link>
+         //state参数无需声明接收
+         <Route path='/home' component={B}></Route>
+    }
+    )
+}
+//子组件
+Class B extends Component{
+    render(){
+        const {id,name} = this.props.location.state;
+    }
+}
+```
+
+**路由跳转两种模式**
+
+push：默认为push路由跳转。当回退时回到上一个状态
+
+replace：路由组件标签中`repalce={true}`。当回退时回到最初的状态
+
+#### 编程式路由
+
+通过路由组建的history对象来实现跳转，而不用内置的`Nav`和`NavLink`来实现跳转；同时这样可以更加自主的添加副作用
 
 # Redux（集中状态管理）（任意组件间通信）
 
@@ -284,9 +427,11 @@ import {Link,Route} from 'react-router-dom'
 
 ## 基础使用
 
-### 1.创建Store（一个项目只有一个）
+创建核心store、创建不同功能的reduce函数、在组件中使用store
 
-store.js文件
+### 创建Store（一个项目只有一个）
+
+store.js文件 
 
 ```javascript
 //引入createStore，专门用于创建Redux的核心store对象
@@ -300,13 +445,14 @@ export default createStore(keyReduce)
 
 ```
 
-### 2.创建一个为key组件服务的Reducer
+### 创建一个为key组件服务的Reducer
 
-key_Reducer.js文件，用于处理action对象，并返回新的state
+创建为当前组件服务的reducer，本质是一个函数(用于完成最基本的目的)
+
+用于处理action对象，并返回新的state
 
 ```javascript
 /*
-	创建为当前组件服务的reducer，本质是一个函数(用于完成最基本的目的)
 	preState:之前状态（初始值为undefined，可以自定义）;actionObj:动作对象{type:,data:}
 */
 function(preState,actionObj){
@@ -316,8 +462,7 @@ function(preState,actionObj){
     //根据type，处理data
     switch (type) {
         case type1 :
-            return 
-        case type2 :{}
+        case type2 :
         ...
         default:
         	return preState的默认值
@@ -325,7 +470,7 @@ function(preState,actionObj){
 }
 ```
 
-### 3.在目标组件中使用
+### 使用
 
 ```javascript
 import store from '/path/store.js'
