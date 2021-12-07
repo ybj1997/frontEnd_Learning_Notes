@@ -419,6 +419,14 @@ replace：路由组件标签中`repalce={true}`。当回退时回到最初的状
 
 通过路由组建的history对象来实现跳转，而不用内置的`Nav`和`NavLink`来实现跳转；同时这样可以更加自主的添加副作用
 
+# Hooks
+
+State Hook：React.useState()
+
+Effect   Hook：React.useEffect()
+
+Ref  Hook：React.useRef()
+
 # Redux（集中状态管理）（任意组件间通信）
 
 用于管理全局共享数据
@@ -435,13 +443,14 @@ store.js文件
 
 ```javascript
 //引入createStore，专门用于创建Redux的核心store对象
-import {createStore} from 'redux';
+import {createStore,applyMiddleware} from 'redux';
+import thunk from 'redux-thunk';//支持异步action
 
 //引入一个为目标组件的Reduce
 import keyReduce from '/path'
 
 //创建一个store向外暴露store
-export default createStore(keyReduce)
+export default createStore(keyReduce,applyMiddleware(thunk))
 
 ```
 
@@ -470,6 +479,24 @@ function(preState,actionObj){
 }
 ```
 
+### 为Reducer服务的actionCreater
+
+```jsx
+//action函数封装
+export const jia = data => ({type:'',data})
+
+//异步action,需要引入'redux-thunk'
+export function async(data,time){
+    return (dispacth)=>{
+        setTimeout(()=>{
+            dispatch(jia(data))
+        },time)
+    }
+}
+```
+
+
+
 ### 使用
 
 ```javascript
@@ -494,6 +521,113 @@ componentDidMount(){
 //获取reducer中的prestate值
 store.getState()
 ```
+
+## React-redux
+
+​	在react-redux世界观中，将组件分为容器组件和UI组件，容器组件包裹着UI组件呈现父子关系，与Redux真正通信的是容器组件。
+
+​	React-redux不需要像Redux一样在顶级React元素中，监听store的state变化来更新state。
+
+### 创建容器组件
+
+容器组件：是连接UI组件和redux通信的桥梁
+
+```jsx
+//引入UI组件和Redux核心，其中Redux的核心store在UI组件中通过props引入
+import UIcomponent from '/'
+
+//连接API
+import {connect} from 'react-redux'
+
+//暴露出被容器组件包裹的UI组件
+const container = connect(mapStateToProps,mapDispatchProps)(UIcomponent);
+export default container;
+
+/*redux ====> UI组件*/
+function mapStateToProps(state){
+    return {key:state}
+}
+
+/*UI组件 ====> redux*/
+function mapDispatchProps(dispatch){
+    return {
+        fn1:value=>dispacth({type:'action对象',data:value}),
+        fn2:()=>{},
+        ....
+    }
+}
+/*简写mapDispatchProps*/
+import {creatActions} from 'creatActions'
+mapDispatchProps = {
+    fn1:creatAction1,
+    fn2:creatActions2,
+    fn3:creatActions3
+}
+```
+
+### 简写创建容器组件
+
+一个文件中定义容器组件和UI组件，只暴露容器组件
+
+```jsx
+import UIcomponent from '/'
+import {creatAction1,creatAction2,creatAction3} form 'actionCreaters'
+import {connect} from 'react-redux'
+
+
+//UI组件中使用
+Class UIcomponent extends Component{
+	console.log(this.props);//{key:state,fn1:f,fn2:f}
+}
+
+export default connect(
+state => ({//UI获取数据
+    key1:value1,
+	key2:value2,
+    ...
+}),{//操作数据的方法
+    fn1:creatAction1,
+    fn2:creatAction2,
+    fn3:creatAction3,
+    ...
+})(UIcomponent)
+
+
+
+```
+
+### store的分配
+
+```jsx
+//使用Provider包裹顶级React元素，实现根据需要给不同的组件分配store，优化了不同容器组件都要分配store的繁琐。
+import {Provider} from 'react-redux'
+ReactDOM(
+	<Provider store={store}>
+    	<App/>
+    </Provider>,
+    document.getElementById('root')
+)
+```
+
+## 不同组件数据共享
+
+### 隔代组件：Context
+
+```jsx
+conet MyContext = React.createContext();
+const {Provider} = Context;
+//使用Provider包裹组件
+<Provider value={value}>
+	<Child/>
+</Provider>
+//声明使用
+Class Child extends Component{
+    static ContextType = MyContext;
+    console.log(this.context);//value
+}
+```
+
+
 
 # 组件懒加载
 
