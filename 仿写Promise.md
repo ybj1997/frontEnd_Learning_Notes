@@ -109,12 +109,89 @@ Promise.prototype.then = function(onResolved,onRejected){
 
 `Promise.prototype.catch`的实现
 
+调用该方法返回一个promise对象
+
 - 接收失败的回调进行处理
 - 可以在链式调用的中间调用，后面的then方法默认为成功，value为undefined
 
 ```javascript
 Promise.prototype.catch = function(onRejected){
 	return Promise.prototype.then(undefined,onRejected);
+}
+```
+
+`Promise.resolve`的实现
+
+调用该方法返回一个promise对象
+
+- 当参数为`Promise`时，返回promise的状态由该参数promise决定
+- 当参数不为promise时，返回的promise的状态为成功，值为该参数
+
+```javascript
+Promise.resolve = function(value){
+    return new Promise((resolve,reject)=>{
+        if(value instanceof Promise){
+            value.then(resolve,reject);
+        }else{
+            resolve(value);
+        }
+    })
+}
+```
+
+`Promise.reject`的实现
+
+调用该方法返回一个promise对象，状态为失败，值为参数
+
+```javascript
+Promise.reject = function(reason){
+	return new Promise((resolve,reject)=>{
+        reject(reason);
+    })
+}
+```
+
+`Promise.all`的实现
+
+参数接收一个值promise的数组，全部成功则返回成功的数组，一个失败则返回失败的reason
+
+```javascript
+Promise.all = function(promises){
+    let res = [];
+    let count = 0;
+	return new Promise((resolve,reject)=>{
+       if(promises.length === 0) return [];
+       else{
+           promises.forEach((p,index) => {
+             Promise.resolve(p).then(
+             	value => {
+                   res[index] = value;
+                   count++;
+                   if(count === promises.length){
+                       resolve(res);
+                   }
+                 },
+                reason => {
+                   reject(reason);
+               }
+             )
+         })
+       }
+    })
+}
+```
+
+`Promise.race`的实现
+
+接收一个参数为promise的数组，返回第一个状态变化完成的值，无论该值时成功还是失败
+
+```javascript
+Promise.race = function(promises){
+	return new Promise((resolve,reject)=>{
+        promises.forEach((p,index)=>{
+            Promise.resolve(p).then(resolve,reject);
+        })
+    })
 }
 ```
 
